@@ -6,6 +6,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
 
 -- | This module provides a mtl style 'MonadLog' class and a concrete monad transformer 'LogT'.
 --
@@ -93,6 +94,9 @@ import Control.Monad.Trans.State.Lazy as Lazy
 import Control.Monad.Trans.State.Strict as Strict
 import Control.Monad.Trans.Writer.Lazy as Lazy
 import Control.Monad.Trans.Writer.Strict as Strict
+import Control.Monad.Base (MonadBase(..))
+import Control.Monad.Trans.Control (MonadBaseControl(..), MonadTransControl(..))
+import Control.Monad.Catch (MonadThrow(..), MonadCatch(..), MonadMask(..))
 
 import System.Log.FastLogger
 import Prelude hiding (log, error)
@@ -333,6 +337,36 @@ instance MonadIO m => MonadLog env (LogT env m) where
     localLogger f ma = LogT $ \ r -> runLogT ma (f r)
     {-# INLINE localLogger #-}
 
+instance MonadBase b m => MonadBase b (LogT env m) where
+  liftBase = lift . liftBase
+
+instance MonadTransControl (LogT env) where
+  type StT (LogT env) a = a
+  liftWith f = LogT $ \r -> f $ \(LogT t) -> t r
+  restoreT = LogT . const
+
+instance MonadBaseControl b m => MonadBaseControl b (LogT env m) where
+  type StM (LogT env m) a = StM m a
+  liftBaseWith f = LogT $ \reader' ->
+    liftBaseWith $ \runInBase ->
+      f $ runInBase . (\(LogT r) -> r reader')
+  restoreM = LogT . const . restoreM
+
+instance MonadThrow m => MonadThrow (LogT env m) where
+  throwM = LogT . runLogT . throwM
+
+instance MonadCatch m => MonadCatch (LogT env m) where
+  catch (LogT m) c = LogT $ \r -> m r `catch` \e -> runLogT (c e) r
+
+instance MonadMask m => MonadMask (LogT env m) where
+  mask a = LogT $ \e -> mask $ \u -> runLogT (a $ q u) e
+    where q :: (m a -> m a) -> LogT e m a -> LogT e m a
+          q u (LogT b) = LogT (u . b)
+  uninterruptibleMask a =
+    LogT $ \e -> uninterruptibleMask $ \u -> runLogT (a $ q u) e
+      where q :: (m a -> m a) -> LogT e m a -> LogT e m a
+            q u (LogT b) = LogT (u . b)
+
 -- | safely run 'LogT' inside 'MonadMask'. Logs are guaranteed to be flushed on exceptions.
 runLogTSafe :: (MonadIO m, MonadMask m) => Logger env -> LogT env m a -> m a
 runLogTSafe lgr m = finally (runLogT m lgr) (liftIO $ cleanUp lgr)
@@ -391,3 +425,4 @@ error' = log' levelError
 
 critical' :: (MonadLog env m) => env -> Text -> m ()
 critical' = log' levelCritical
+
