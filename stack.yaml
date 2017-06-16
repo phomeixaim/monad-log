@@ -1,0 +1,9 @@
+resolver: lts-8.18
+
+packages:
+- .
+
+flags: {}
+
+extra-deps: []
+
