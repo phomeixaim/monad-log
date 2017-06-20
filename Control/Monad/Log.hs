@@ -75,8 +75,9 @@ import Data.Monoid (Monoid)
 import qualified Control.Monad.Fail as Fail
 #endif
 import Control.Monad (when, liftM, ap)
-import Control.Monad.Catch (MonadMask, finally)
-import Control.Monad.Trans.Control (MonadBaseControl)
+import Control.Monad.Catch (MonadThrow(..), MonadCatch(..), MonadMask(..), finally)
+import Control.Monad.Trans.Control (MonadBaseControl(..), MonadTransControl(..))
+import Control.Monad.Base (MonadBase(..))
 import qualified Control.Exception.Lifted as Lifted
 
 import Control.Monad.Fix
@@ -94,9 +95,6 @@ import Control.Monad.Trans.State.Lazy as Lazy
 import Control.Monad.Trans.State.Strict as Strict
 import Control.Monad.Trans.Writer.Lazy as Lazy
 import Control.Monad.Trans.Writer.Strict as Strict
-import Control.Monad.Base (MonadBase(..))
-import Control.Monad.Trans.Control (MonadBaseControl(..), MonadTransControl(..))
-import Control.Monad.Catch (MonadThrow(..), MonadCatch(..), MonadMask(..))
 
 import System.Log.FastLogger
 import Prelude hiding (log, error)
