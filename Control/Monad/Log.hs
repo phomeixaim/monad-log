@@ -69,7 +69,9 @@ module Control.Monad.Log (
 
 #if !(MIN_VERSION_base(4,8,0))
 import Control.Applicative
-import Data.Monoid (Monoid)
+import Data.Monoid (Monoid, (<>))
+#else
+import Data.Monoid ((<>))
 #endif
 #if MIN_VERSION_base(4,9,0)
 import qualified Control.Monad.Fail as Fail
@@ -107,7 +109,9 @@ import TextShow as X
 
 import qualified Data.Aeson as JSON
 import Data.Aeson (ToJSON, fromEncoding, (.=))
-import Data.Monoid ((<>))
+
+import Control.Monad.Except (MonadError(..))
+import Control.Monad.Signatures (Catch)
 
 -----------------------------------------------------------------------------------------
 
@@ -364,6 +368,12 @@ instance MonadMask m => MonadMask (LogT env m) where
     LogT $ \e -> uninterruptibleMask $ \u -> runLogT (a $ q u) e
       where q :: (m a -> m a) -> LogT e m a -> LogT e m a
             q u (LogT b) = LogT (u . b)
+
+instance MonadError e m => MonadError e (LogT env m) where
+  throwError = lift . throwError
+  catchError = liftCatch' catchError
+    where liftCatch' :: Catch e m a -> Catch e (LogT env m) a
+          liftCatch' f m h = LogT $ \lgr -> f (runLogT m lgr) (\ e -> runLogT (h e) lgr)
 
 -- | safely run 'LogT' inside 'MonadMask'. Logs are guaranteed to be flushed on exceptions.
 runLogTSafe :: (MonadIO m, MonadMask m) => Logger env -> LogT env m a -> m a

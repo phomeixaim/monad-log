@@ -1,9 +1,10 @@
-resolver: lts-8.18
+resolver: lts-8.20
 
 packages:
 - .
 
 flags: {}
 
-extra-deps: []
+extra-deps:
+- transformers-lift-0.2.0.1
 
