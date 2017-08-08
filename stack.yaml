@@ -1,4 +1,4 @@
-resolver: lts-8.21
+resolver: lts-8.24
 
 packages:
 - .
@@ -6,5 +6,8 @@ packages:
 flags: {}
 
 extra-deps:
-- transformers-lift-0.2.0.1
+- generic-deriving-1.11.2
+- unix-time-0.3.7
+- auto-update-0.1.4
+- easy-file-0.2.1
 
